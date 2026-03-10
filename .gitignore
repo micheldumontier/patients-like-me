@@ -1,0 +1,29 @@
+.venv/
+__pycache__/
+*.pyc
+
+# Large data files
+data/*.ttl
+data/*.zip
+data/*.ttl.bak
+
+# QLever index and runtime files
+qlever/*.ttl
+qlever/*.index.*
+qlever/*.meta-data*
+qlever/*.patterns*
+qlever/*.vocabulary*
+qlever/*.prefixes
+qlever/mimic-iv-demo.settings.json
+
+# Generated analysis outputs
+analysis/*/timeline_*.html
+analysis/*/similarity_*.html
+analysis/events-per-patient/*.png
+analysis/rdf2vec/*.npy
+analysis/rdf2vec/*.json
+analysis/rdf2vec/*.csv
+analysis/rdf2vec/*.png
+
+# OS
+.DS_Store

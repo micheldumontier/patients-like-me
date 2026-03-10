@@ -1,0 +1,21 @@
+[data]
+NAME         = mimic-iv-demo
+GET_DATA_CMD =
+DESCRIPTION  = MIMIC-IV Demo dataset + ICD9CM ontology in RDF
+
+[index]
+INPUT_FILES     = *.ttl
+CAT_INPUT_FILES = cat ${INPUT_FILES}
+SETTINGS_JSON   = { "num-triples-per-batch": 1000000 }
+
+[server]
+PORT         = 7001
+ACCESS_TOKEN = mimic_demo_token
+
+[runtime]
+SYSTEM = docker
+IMAGE  = docker.io/adfreiburg/qlever:latest
+
+[ui]
+UI_PORT   = 7002
+UI_CONFIG = default

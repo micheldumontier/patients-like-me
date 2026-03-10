@@ -1,0 +1,7 @@
+pandas
+numpy
+scikit-learn
+matplotlib
+jupyter
+rdflib
+meds2rdf @ git+https://github.com/TeamHeKA/meds2rdf.git
