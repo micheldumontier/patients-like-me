@@ -1,4 +1,4 @@
-# MIMIC-Miner
+# Patients Like Me
 
 A clinical data analysis platform that converts MIMIC-IV demo data to RDF, loads it alongside medical ontologies into a QLever triplestore, and provides interactive visualizations including patient timelines, RDF2Vec-based patient similarity, and AI-powered clinical summaries.
 
@@ -47,6 +47,21 @@ source .venv/bin/activate
 pip install -r requirements.txt
 pip install qdrant-client
 ```
+
+## Configuration
+
+Copy the environment template and fill in your credentials:
+
+```bash
+cp .env.example .env
+```
+
+| Variable | Description |
+|----------|-------------|
+| `AZURE_OPENAI_ENDPOINT` | Azure OpenAI resource endpoint |
+| `AZURE_OPENAI_KEY` | Azure OpenAI API key |
+| `AZURE_OPENAI_DEPLOYMENT` | Model deployment name (e.g., `gpt-5.2`) |
+| `AZURE_OPENAI_API_VERSION` | API version (e.g., `2025-01-01-preview`) |
 
 ## Data Pipeline
 
@@ -158,7 +173,8 @@ python plot_events_histogram.py
 ## Project Structure
 
 ```
-mimic-miner/
+patients-like-me/
+├── .env.example                   # Environment variable template
 ├── data/                          # RDF data files
 │   ├── mimic-iv-demo.ttl          # Patient events
 │   ├── ICD9CM.ttl                 # Ontologies
