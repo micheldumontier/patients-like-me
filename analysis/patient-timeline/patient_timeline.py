@@ -5,6 +5,16 @@ import urllib.parse
 import sys
 import os
 
+# Load .env from project root
+ENV_PATH = os.path.join(os.path.dirname(__file__), "..", "..", ".env")
+if os.path.exists(ENV_PATH):
+    with open(ENV_PATH) as _f:
+        for _line in _f:
+            _line = _line.strip()
+            if _line and not _line.startswith("#") and "=" in _line:
+                _k, _v = _line.split("=", 1)
+                os.environ.setdefault(_k.strip(), _v.strip())
+
 ENDPOINT = "http://localhost:7001"
 
 
@@ -672,10 +682,10 @@ document.addEventListener('mousemove', ev => {{
 document.addEventListener('mouseup', () => {{ panMode = false; }});
 
 /* ========== AI SUMMARY ========== */
-const AZURE_ENDPOINT = 'https://mmigh-m8gpxf72-eastus2.cognitiveservices.azure.com';
-const AZURE_DEPLOYMENT = 'gpt-5.2';
-const AZURE_API_VERSION = '2025-01-01-preview';
-const AZURE_API_KEY = prompt('Enter your Azure OpenAI API key:') || '';
+const AZURE_ENDPOINT = '{azure_endpoint}';
+const AZURE_DEPLOYMENT = '{azure_deployment}';
+const AZURE_API_VERSION = '{azure_api_version}';
+const AZURE_API_KEY = '{azure_key}';
 
 let summaryCollapsed = false;
 
@@ -803,6 +813,10 @@ def generate_html(subject_id, events):
     return TEMPLATE.format(
         subject_id=subject_id,
         events_json=json.dumps(events),
+        azure_endpoint=os.environ.get("AZURE_OPENAI_ENDPOINT", ""),
+        azure_deployment=os.environ.get("AZURE_OPENAI_DEPLOYMENT", ""),
+        azure_api_version=os.environ.get("AZURE_OPENAI_API_VERSION", ""),
+        azure_key=os.environ.get("AZURE_OPENAI_KEY", ""),
     )
 
 
