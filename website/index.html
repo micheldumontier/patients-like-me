@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Patients Like Me — MIMIC-IV Clinical Analysis Platform</title>
+<style>
+:root {
+  --bg: #0f172a; --surface: #1e293b; --surface2: #334155;
+  --text: #e2e8f0; --muted: #94a3b8; --accent: #38bdf8;
+  --green: #34d399; --purple: #a78bfa; --orange: #fb923c; --pink: #f472b6;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }
+
+header {
+  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+  border-bottom: 1px solid var(--surface2);
+  padding: 48px 32px 40px;
+  text-align: center;
+}
+header h1 { font-size: 2rem; font-weight: 700; color: var(--accent); margin-bottom: 8px; }
+header p { font-size: 1rem; color: var(--muted); max-width: 700px; margin: 0 auto; line-height: 1.6; }
+
+.container { max-width: 1100px; margin: 0 auto; padding: 32px 24px; }
+
+h2 { font-size: 1.3rem; color: var(--accent); margin: 32px 0 16px; }
+h3 { font-size: 1rem; color: var(--text); margin-bottom: 8px; }
+
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; margin-bottom: 32px; }
+
+.card {
+  background: var(--surface); border: 1px solid var(--surface2); border-radius: 12px;
+  padding: 24px; text-decoration: none; color: var(--text); display: block;
+  transition: all .15s;
+}
+.card:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 8px 24px rgba(56,189,248,.1); }
+.card .icon { font-size: 2rem; margin-bottom: 12px; }
+.card h3 { margin-bottom: 6px; }
+.card p { font-size: 0.85rem; color: var(--muted); line-height: 1.5; }
+.card .tag {
+  display: inline-block; margin-top: 10px; padding: 2px 10px; border-radius: 8px;
+  font-size: 0.75rem; font-weight: 600;
+}
+.tag.blue { background: rgba(56,189,248,0.15); color: var(--accent); }
+.tag.green { background: rgba(52,211,153,0.15); color: var(--green); }
+.tag.purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+.tag.orange { background: rgba(251,146,60,0.15); color: var(--orange); }
+
+.services { margin-top: 16px; }
+.services table {
+  width: 100%; border-collapse: collapse; font-size: 0.85rem;
+  background: var(--surface); border-radius: 12px; overflow: hidden;
+}
+.services th {
+  text-align: left; padding: 10px 16px; background: var(--surface2); color: var(--muted);
+  font-weight: 600; font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.5px;
+}
+.services td { padding: 10px 16px; border-bottom: 1px solid var(--surface2); }
+.services tr:last-child td { border-bottom: none; }
+.services a { color: var(--accent); text-decoration: none; }
+.services a:hover { text-decoration: underline; }
+.services code {
+  background: var(--surface2); padding: 2px 6px; border-radius: 4px;
+  font-size: 0.8rem; color: var(--green);
+}
+
+.example-section { margin-top: 32px; }
+.example {
+  background: var(--surface); border: 1px solid var(--surface2); border-radius: 10px;
+  padding: 16px 20px; margin-bottom: 12px;
+}
+.example h4 { font-size: 0.85rem; color: var(--accent); margin-bottom: 6px; }
+.example pre {
+  background: #0d1117; padding: 12px 16px; border-radius: 8px; overflow-x: auto;
+  font-size: 0.8rem; color: #c9d1d9; line-height: 1.5;
+}
+
+footer {
+  text-align: center; padding: 32px; color: var(--muted); font-size: 0.8rem;
+  border-top: 1px solid var(--surface2); margin-top: 40px;
+}
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Patients Like Me</h1>
+  <p>A clinical data analysis platform built on MIMIC-IV demo data. Patient events are converted to RDF,
+     loaded into a QLever triplestore with medical ontologies (ICD9/10, RXNORM, SNOMED CT, LOINC),
+     and explored through interactive visualizations and vector-based patient similarity.</p>
+</header>
+
+<div class="container">
+
+  <h2>Analyses</h2>
+  <div class="grid">
+    <a class="card" href="./patient-timeline/">
+      <div class="icon">&#128200;</div>
+      <h3>Patient Timelines</h3>
+      <p>Interactive timeline visualization for each patient with category filtering,
+         overview+detail navigation, and AI-powered clinical summaries (GPT-5.2).</p>
+      <span class="tag blue">100 patients</span>
+    </a>
+
+    <a class="card" href="./patient-similarity/">
+      <div class="icon">&#129520;</div>
+      <h3>Patient Similarity</h3>
+      <p>Find the most similar patients using RDF2Vec embeddings. Compare clinical profiles
+         with radar charts, event heatmaps, and shared/unique code analysis.</p>
+      <span class="tag purple">RDF2Vec + Qdrant</span>
+    </a>
+  </div>
+
+  <h2>Data Services</h2>
+  <div class="services">
+    <table>
+      <tr>
+        <th>Service</th><th>URL</th><th>Description</th>
+      </tr>
+      <tr>
+        <td>QLever SPARQL</td>
+        <td><a href="http://localhost:6335">localhost:6335</a></td>
+        <td>SPARQL endpoint for patient events + medical ontologies (~6.6M triples)</td>
+      </tr>
+      <tr>
+        <td>QLever UI</td>
+        <td><a href="http://localhost:6336/default">localhost:6336</a></td>
+        <td>Web-based SPARQL query editor with autocomplete and prefix support</td>
+      </tr>
+      <tr>
+        <td>Qdrant Vector DB</td>
+        <td><a href="http://localhost:6333/dashboard">localhost:6333</a></td>
+        <td>Vector database storing RDF2Vec patient embeddings (200-dim, cosine distance)</td>
+      </tr>
+      <tr>
+        <td>IRI Redirect</td>
+        <td><a href="http://localhost:6337">localhost:6337</a></td>
+        <td>Resolves RDF IRIs to QLever UI entity views for browsing linked data</td>
+      </tr>
+    </table>
+  </div>
+
+  <div class="example-section">
+    <h2>Example SPARQL Queries</h2>
+    <p style="color:var(--muted);font-size:0.85rem;margin-bottom:16px;">
+      Run these against <a href="http://localhost:6335" style="color:var(--accent);">the QLever endpoint</a>
+      or paste into the <a href="http://localhost:6336/default" style="color:var(--accent);">QLever UI</a>.
+    </p>
+
+    <div class="example">
+      <h4>Count events per patient (top 10)</h4>
+      <pre>PREFIX meds: &lt;https://teamheka.github.io/meds-ontology#&gt;
+SELECT ?subject (COUNT(?e) AS ?eventCount) WHERE {
+  ?e a meds:Event ; meds:hasSubject ?subject .
+}
+GROUP BY ?subject
+ORDER BY DESC(?eventCount)
+LIMIT 10</pre>
+    </div>
+
+    <div class="example">
+      <h4>Get all diagnoses for a patient (with ICD labels)</h4>
+      <pre>PREFIX meds: &lt;https://teamheka.github.io/meds-ontology#&gt;
+PREFIX skos: &lt;http://www.w3.org/2004/02/skos/core#&gt;
+SELECT ?time ?codeString ?label WHERE {
+  ?e a meds:Event ;
+     meds:hasSubject &lt;https://teamheka.github.io/meds-data/subject/10000032&gt; ;
+     meds:codeString ?codeString ;
+     meds:time ?time ;
+     meds:hasCode ?code .
+  ?code meds:parentCode ?parent .
+  ?parent skos:prefLabel ?label .
+  FILTER(STRSTARTS(?codeString, "ICD"))
+}
+ORDER BY ?time</pre>
+    </div>
+
+    <div class="example">
+      <h4>Find patients with a specific ICD-9 diagnosis code</h4>
+      <pre>PREFIX meds: &lt;https://teamheka.github.io/meds-ontology#&gt;
+PREFIX icd9: &lt;http://purl.bioontology.org/ontology/ICD9CM/&gt;
+SELECT DISTINCT ?subject WHERE {
+  ?e a meds:Event ;
+     meds:hasSubject ?subject ;
+     meds:hasCode [ meds:parentCode icd9:428.0 ] .
+}</pre>
+    </div>
+
+    <div class="example">
+      <h4>Qdrant: find similar patients (REST API)</h4>
+      <pre>curl http://localhost:6333/collections/patient_embeddings/points/scroll \
+  -H "Content-Type: application/json" \
+  -d '{"filter":{"must":[{"key":"patient_id","match":{"value":10000032}}]},"with_vector":true,"limit":1}'</pre>
+    </div>
+  </div>
+
+</div>
+
+<footer>
+  Patients Like Me &mdash; Built with MIMIC-IV Demo, QLever, Qdrant, RDF2Vec, and Azure OpenAI
+</footer>
+
+</body>
+</html>

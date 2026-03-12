@@ -15,7 +15,7 @@ GROUP BY ?subject
 ORDER BY ?eventCount
 """
 
-url = "http://localhost:7001?" + urllib.parse.urlencode({"query": query})
+url = "http://localhost:6335?" + urllib.parse.urlencode({"query": query})
 with urllib.request.urlopen(url) as resp:
     data = json.loads(resp.read())
 

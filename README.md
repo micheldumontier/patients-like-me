@@ -6,28 +6,27 @@ A clinical data analysis platform that converts MIMIC-IV demo data to RDF, loads
 
 ```
 MIMIC-IV Demo (MEDS format)
-        │
-        ▼
-    meds2rdf ──► RDF (Turtle)
-        │
-        ▼
-┌──────────────────────────┐     ┌──────────────────┐
-│  QLever Triplestore      │     │  Qdrant Vector DB │
-│  (port 7001)             │     │  (port 6333)      │
-│  - Patient events        │     │  - RDF2Vec         │
-│  - ICD9CM, ICD10CM       │     │    embeddings      │
-│  - RXNORM, LOINC         │     │                    │
-│  - SNOMED CT             │     │                    │
-└──────────┬───────────────┘     └────────┬───────────┘
-           │                              │
-           ▼                              ▼
-   ┌───────────────────────────────────────────┐
-   │         Analysis & Visualization          │
-   │  (served on port 8024)                    │
-   │  - Patient timelines with AI summaries    │
-   │  - Patient similarity comparisons         │
-   │  - RDF2Vec clustering                     │
-   └───────────────────────────────────────────┘
+        |
+        v
+    meds2rdf --> RDF (Turtle)
+        |
+        v
++---------------------------+     +-------------------+
+|  QLever Triplestore       |     |  Qdrant Vector DB  |
+|  (port 7001)              |     |  (port 6333)       |
+|  - Patient events         |     |  - RDF2Vec          |
+|  - ICD9CM, ICD10CM        |     |    embeddings       |
+|  - RXNORM, LOINC          |     |                     |
+|  - SNOMED CT              |     |                     |
++-----------+---------------+     +---------+-----------+
+            |                               |
+            v                               v
+   +--------------------------------------------+
+   |       website/ (port 8025/mimic-miner/)     |
+   |  - Landing page with service links          |
+   |  - Patient timelines with AI summaries      |
+   |  - Patient similarity comparisons           |
+   +--------------------------------------------+
 ```
 
 ## Prerequisites
@@ -104,8 +103,21 @@ qlever start
 
 The `--parse-parallel false` flag is required due to multiline string literals in the data.
 
-- SPARQL endpoint: `http://localhost:7001`
+- SPARQL endpoint: `http://localhost:6335`
 - Access token: `mimic_demo_token`
+
+#### QLever UI
+
+Start the web-based SPARQL query interface:
+
+```bash
+cd qlever
+qlever ui
+```
+
+- UI: `http://localhost:6336/default`
+- Includes autocomplete for prefixes (meds, ICD9CM, ICD10CM, RXNORM, SNOMEDCT, LOINC, etc.) and example queries
+- Configuration is in `qlever/Qleverfile-ui.yml`
 
 ### 4. Start Qdrant Vector Database
 
@@ -116,52 +128,54 @@ docker run -d --name qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant:latest
 - REST API: `http://localhost:6333`
 - Dashboard: `http://localhost:6333/dashboard`
 
-## Analysis
+## Website
 
-Start the analysis web server:
-
-```bash
-cd analysis
-python -m http.server 8024
-```
-
-Browse all analyses at `http://localhost:8024/`.
-
-### Patient Timeline
-
-Interactive timeline visualization with overview+detail navigation, category filtering, and AI-powered clinical summaries (via Azure OpenAI GPT-5.2).
+All generated visualizations are served from the `website/` directory under the `/mimic-miner/` path prefix. Start the web server:
 
 ```bash
-cd analysis/patient-timeline
-python patient_timeline.py <patient_id>
-# View at http://localhost:8024/patient-timeline/timeline_<patient_id>.html
+python website/serve.py
 ```
 
-### Patient Similarity
+Browse the platform at `http://localhost:9000/mimic-miner/`. The landing page provides links to all analyses and data services.
 
-Finds the most similar patients using RDF2Vec embeddings stored in Qdrant, then generates a comparison visualization with:
-- Similarity score bars
-- Event category heatmap
-- Radar chart comparing clinical profiles
-- Shared vs unique clinical codes
+### Generating Content
+
+#### Patient Timelines
+
+Generate interactive timeline visualizations with category filtering, overview+detail navigation, and AI-powered clinical summaries (via Azure OpenAI GPT-5.2).
 
 ```bash
-cd analysis/patient-similarity
-python find_similar_patients.py <patient_id> --top_n 5
-# View at http://localhost:8024/patient-similarity/similarity_<patient_id>.html
+# Generate a single patient timeline
+python analysis/patient-timeline/patient_timeline.py <patient_id>
+
+# Generate all patient timelines + index page
+python analysis/patient-timeline/patient_timeline.py
 ```
 
-### RDF2Vec Embeddings
+Output goes to `website/patient-timeline/`. View at `http://localhost:9000/mimic-miner/patient-timeline/`.
 
-Computes graph embeddings for patients and visualizes clusters.
+#### Patient Similarity
+
+Find the most similar patients using RDF2Vec embeddings stored in Qdrant, then generate a comparison visualization with similarity scores, event category heatmap, radar chart, and shared/unique clinical codes.
+
+```bash
+python analysis/patient-similarity/find_similar_patients.py <patient_id> --top_n 5
+```
+
+Output goes to `website/patient-similarity/`. View at `http://localhost:9000/mimic-miner/patient-similarity/`.
+
+#### RDF2Vec Embeddings
+
+Compute graph embeddings for patients and visualize clusters.
 
 ```bash
 cd analysis/rdf2vec
 python run_rdf2vec.py              # Generate embeddings
 python cluster_and_visualize.py    # t-SNE/UMAP clustering
+python update_qdrant.py            # Load into Qdrant
 ```
 
-### Events per Patient
+#### Events per Patient
 
 Histogram of event counts across the patient population.
 
@@ -175,6 +189,18 @@ python plot_events_histogram.py
 ```
 patients-like-me/
 ├── .env.example                   # Environment variable template
+├── website/                       # Generated website (served on port 8080)
+│   ├── index.html                 # Landing page with links to all services
+│   ├── patient-timeline/          # Generated patient timeline HTML files
+│   │   ├── index.html             # Patient listing page
+│   │   └── data/                  # Individual timeline files
+│   └── patient-similarity/        # Generated similarity comparison files
+│       └── index.html             # Similarity listing page
+├── analysis/                      # Analysis scripts
+│   ├── patient-timeline/          # Timeline generation script
+│   ├── patient-similarity/        # Similarity generation script
+│   ├── rdf2vec/                   # Graph embedding generation
+│   └── events-per-patient/        # Population-level statistics
 ├── data/                          # RDF data files
 │   ├── mimic-iv-demo.ttl          # Patient events
 │   ├── ICD9CM.ttl                 # Ontologies
@@ -186,19 +212,35 @@ patients-like-me/
 ├── data_scripts/
 │   └── rf2_to_ttl.py              # SNOMED CT RF2 to Turtle converter
 ├── qlever/                        # QLever triplestore config + index
-│   └── Qleverfile
-├── analysis/                      # All analyses (served on port 8024)
-│   ├── patient-timeline/          # Interactive patient timelines
-│   ├── patient-similarity/        # Vector similarity comparisons
-│   ├── rdf2vec/                   # Graph embedding generation
-│   └── events-per-patient/        # Population-level statistics
+│   ├── Qleverfile
+│   └── Qleverfile-ui.yml          # QLever UI configuration
+├── iri_redirect.py                # IRI -> QLever UI redirect service
 └── requirements.txt
 ```
 
 ## Services
 
-| Service  | Port | URL                              |
-|----------|------|----------------------------------|
-| QLever   | 7001 | `http://localhost:7001`           |
-| Qdrant   | 6333 | `http://localhost:6333/dashboard` |
-| Analysis | 8024 | `http://localhost:8024`           |
+| Service       | Port | URL                               |
+|---------------|------|-----------------------------------|
+| Website       | 9000  | `http://localhost:9000/mimic-miner/` |
+| QLever        | 6335 | `http://localhost:6335`            |
+| QLever UI     | 6336 | `http://localhost:6336/default`    |
+| IRI Redirect  | 6337 | `http://localhost:6337`            |
+| Qdrant        | 6333 | `http://localhost:6333/dashboard`  |
+
+### IRI Redirect Service
+
+Resolves RDF IRIs to QLever UI entity views. Useful for making IRIs in results browsable.
+
+```bash
+python iri_redirect.py
+```
+
+Example redirects:
+
+| Local URL | Resolves IRI |
+|-----------|-------------|
+| `http://localhost:6337/meds-data/subject/10000032` | `https://teamheka.github.io/meds-data/subject/10000032` |
+| `http://localhost:6337/ICD9CM/038.0` | `http://purl.bioontology.org/ontology/ICD9CM/038.0` |
+| `http://localhost:6337/RXNORM/161` | `http://purl.bioontology.org/ontology/RXNORM/161` |
+| `http://localhost:6337/?uri=<any_iri>` | Any IRI |

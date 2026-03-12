@@ -16,15 +16,25 @@ qlever/*.patterns*
 qlever/*.vocabulary*
 qlever/*.prefixes
 qlever/mimic-iv-demo.settings.json
+qlever/*.server-log.txt
+qlever/*.index-log.txt
+qlever/*.ui-db.sqlite3
 
 # Generated analysis outputs
 analysis/*/timeline_*.html
+analysis/*/data/
 analysis/*/similarity_*.html
+analysis/*/index.html
 analysis/events-per-patient/*.png
 analysis/rdf2vec/*.npy
 analysis/rdf2vec/*.json
 analysis/rdf2vec/*.csv
 analysis/rdf2vec/*.png
+
+# Generated website content
+website/patient-timeline/data/
+website/patient-timeline/index.html
+website/patient-similarity/similarity_*.html
 
 # OS
 .DS_Store

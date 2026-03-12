@@ -15,7 +15,7 @@ if os.path.exists(ENV_PATH):
                 _k, _v = _line.split("=", 1)
                 os.environ.setdefault(_k.strip(), _v.strip())
 
-ENDPOINT = "http://localhost:7001"
+ENDPOINT = "http://localhost:6335"
 
 
 def sparql(query):
@@ -237,12 +237,30 @@ header .stats {{ font-size: 12px; opacity: .75; }}
 .lane-details tr:hover td {{ background: #f0f8ff; }}
 .lane-details .val {{ font-family: 'SF Mono', Menlo, monospace; font-size: 11px; }}
 
-/* ===== AI SUMMARY ===== */
-.summary-section {{
-  padding: 0 28px; background: var(--bg);
+/* ===== AI SECTION ===== */
+.ai-section {{
+  padding: 16px 28px; background: var(--bg);
 }}
+.ai-section-title {{
+  font-size: 14px; font-weight: 700; color: var(--text); margin-bottom: 10px;
+  text-transform: uppercase; letter-spacing: .5px;
+}}
+.ai-row {{
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+}}
+@media (max-width: 900px) {{ .ai-row {{ grid-template-columns: 1fr; }} }}
+.ai-panel {{
+  background: var(--surface); border-radius: 10px; border: 1px solid var(--border);
+  padding: 14px 18px; display: flex; flex-direction: column;
+}}
+.ai-panel-head {{
+  display: flex; align-items: center; gap: 8px; margin-bottom: 10px;
+}}
+.ai-panel-icon {{ font-size: 16px; }}
+.ai-panel-label {{ font-size: 13px; font-weight: 700; }}
+.ai-panel-meta {{ font-size: 11px; color: var(--muted); }}
 .summary-bar {{
-  display: flex; align-items: center; gap: 10px; padding: 8px 0 4px;
+  display: flex; align-items: center; gap: 10px; padding: 4px 0;
 }}
 .summary-bar .gen-btn {{
   padding: 7px 18px; border-radius: 8px; border: none;
@@ -291,6 +309,45 @@ header .stats {{ font-size: 12px; opacity: .75; }}
 .summary-body strong {{ color: #2d3436; }}
 .summary-body em {{ color: #6c5ce7; font-style: normal; font-weight: 500; }}
 
+/* ===== CHAT WIDGET ===== */
+.chat-messages {{
+  min-height: 60px; max-height: 350px; overflow-y: auto;
+  border: 1px solid var(--border); border-radius: 8px; background: #f9fafb;
+  padding: 10px; margin-bottom: 8px; display: flex; flex-direction: column; gap: 8px;
+}}
+.chat-messages:empty::before {{
+  content: 'No messages yet. Ask a question about this patient\\'s record.';
+  color: var(--muted); font-size: 12px; font-style: italic;
+}}
+.chat-msg {{
+  padding: 8px 12px; border-radius: 8px; font-size: 13px; line-height: 1.6;
+  max-width: 90%; word-wrap: break-word;
+}}
+.chat-msg.user {{
+  background: var(--accent); color: #fff; align-self: flex-end; border-bottom-right-radius: 2px;
+}}
+.chat-msg.assistant {{
+  background: var(--surface); border: 1px solid var(--border); align-self: flex-start; border-bottom-left-radius: 2px;
+}}
+.chat-msg.assistant p {{ margin-bottom: 6px; }}
+.chat-msg.assistant p:last-child {{ margin-bottom: 0; }}
+.chat-msg.assistant strong {{ color: #2d3436; }}
+.chat-msg.thinking {{
+  background: var(--surface); border: 1px solid var(--border); align-self: flex-start;
+  color: var(--muted); font-style: italic;
+}}
+.chat-input-row {{
+  display: flex; gap: 8px;
+}}
+.chat-input-row input {{
+  flex: 1; padding: 8px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 13px; outline: none;
+}}
+.chat-input-row input:focus {{ border-color: var(--accent); }}
+.chat-hint {{
+  font-size: 11px; color: var(--muted); margin-top: 6px;
+}}
+
 /* Tooltip */
 #tip {{
   position: fixed; background: rgba(30,30,46,.95); color: #fff; padding: 10px 14px;
@@ -312,27 +369,6 @@ header .stats {{ font-size: 12px; opacity: .75; }}
   <div id="filters"></div>
 </div>
 
-<!-- AI Summary -->
-<div class="summary-section">
-  <div class="summary-bar">
-    <button class="gen-btn" id="summarizeBtn" onclick="summarizeView()">
-      <span id="btnLabel">&#10024; Summarize selected range</span>
-    </button>
-    <span class="status" id="summaryStatus"></span>
-  </div>
-  <div id="summaryCard">
-    <div class="summary-header" onclick="toggleSummary()">
-      <div class="left">
-        <span class="icon">&#129302;</span>
-        <span class="title">AI Clinical Summary</span>
-        <span class="meta" id="summaryMeta"></span>
-      </div>
-      <span class="chevron" id="summaryChevron">&#9660;</span>
-    </div>
-    <div class="summary-body" id="summaryBody"></div>
-  </div>
-</div>
-
 <!-- Overview minimap -->
 <div class="overview-section">
   <div class="overview-label">Overview — drag to select time range, drag edges to resize</div>
@@ -352,6 +388,50 @@ header .stats {{ font-size: 12px; opacity: .75; }}
   <button onclick="resetZoom()">Reset view</button>
 </div>
 <div id="timeline"></div>
+
+<!-- AI Summary (scoped to detail view) -->
+<div class="ai-section">
+  <div class="ai-section-title">AI Tools</div>
+  <div class="ai-row">
+    <div class="ai-panel">
+      <div class="ai-panel-head">
+        <span class="ai-panel-icon">&#10024;</span>
+        <span class="ai-panel-label">Summarize View</span>
+        <span class="ai-panel-meta" id="summaryEvtCount"></span>
+      </div>
+      <div class="summary-bar">
+        <button class="gen-btn" id="summarizeBtn" onclick="summarizeView()">
+          <span id="btnLabel">&#10024; Summarize selected range</span>
+        </button>
+        <span class="status" id="summaryStatus"></span>
+      </div>
+      <div id="summaryCard">
+        <div class="summary-header" onclick="toggleSummary()">
+          <div class="left">
+            <span class="icon">&#129302;</span>
+            <span class="title">AI Clinical Summary</span>
+            <span class="meta" id="summaryMeta"></span>
+          </div>
+          <span class="chevron" id="summaryChevron">&#9660;</span>
+        </div>
+        <div class="summary-body" id="summaryBody"></div>
+      </div>
+    </div>
+    <div class="ai-panel">
+      <div class="ai-panel-head">
+        <span class="ai-panel-icon">&#128172;</span>
+        <span class="ai-panel-label">Ask About This Patient</span>
+      </div>
+      <div id="chatMessages" class="chat-messages"></div>
+      <div class="chat-input-row">
+        <input type="text" id="chatInput" placeholder="e.g. What medications were given on 2180-07-23?" onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="gen-btn" id="chatSendBtn" onclick="sendChat()">Send</button>
+      </div>
+      <div class="chat-hint">Ask about specific dates, conditions, medications, lab trends, etc. Uses events in the current view.</div>
+    </div>
+  </div>
+</div>
+
 <div id="tip"></div>
 
 <script>
@@ -429,13 +509,7 @@ function updateBrush() {{
 }}
 
 function renderOvAxis() {{
-  const gSpan = gMax - gMin;
-  const n = 10; let h = '';
-  for (let i = 0; i <= n; i++) {{
-    const t = gMin + gSpan * i / n;
-    h += `<span style="left:${{(i/n)*100}}%">${{fmtTick(t, gSpan)}}</span>`;
-  }}
-  document.getElementById('ovAxis').innerHTML = h;
+  document.getElementById('ovAxis').innerHTML = generateSmartTicks(gMin, gMax);
 }}
 
 /* ---- brush interaction ---- */
@@ -593,18 +667,22 @@ function renderDetail() {{
   }});
 
   /* detail time axis */
-  html += `<div class="detail-axis">`;
-  const nTicks = 8;
-  for (let i = 0; i <= nTicks; i++) {{
-    const t = vMin + span * i / nTicks;
-    html += `<span style="left:calc(20px + ${{i/nTicks*100}}% * (1 - 40px/100%))">${{fmtTick(t, span)}}</span>`;
-  }}
-  html += `</div>`;
+  html += `<div class="detail-axis">${{generateSmartTicks(vMin, vMax, 20)}}</div>`;
 
   document.getElementById('timeline').innerHTML = html;
-  document.getElementById('rangeLabel').textContent = fmtTick(vMin, span) + ' — ' + fmtTick(vMax, span);
+
+  /* count visible events for the header and AI panel */
+  const allVisible = ALL.filter(e => {{
+    if (!activeCats.has(e.category)) return false;
+    const t = +new Date(e.time);
+    return t >= vMin && t <= vMax;
+  }});
+  document.getElementById('rangeLabel').textContent =
+    fmtRange(vMin) + ' — ' + fmtRange(vMax) + `  (${{allVisible.length.toLocaleString()}} events in view)`;
   document.getElementById('summary').textContent =
-    `${{ALL.length}} events · ${{cats.length}} categories · ${{fmtDate(gMin0)}} to ${{fmtDate(gMax0)}}`;
+    `${{ALL.length}} events · ${{cats.length}} categories · ${{fmtRange(gMin0)}} to ${{fmtRange(gMax0)}}`;
+  const seLabel = document.getElementById('summaryEvtCount');
+  if (seLabel) seLabel.textContent = `${{allVisible.length.toLocaleString()}} events in view`;
 }}
 
 function toggleLane(cat) {{
@@ -613,16 +691,83 @@ function toggleLane(cat) {{
 }}
 
 /* ---- time formatting ---- */
-function fmtDate(ms) {{
-  return new Date(ms).toLocaleDateString('en-US', {{month:'short',day:'numeric',year:'numeric'}});
-}}
-function fmtTick(ms, span) {{
+function fmtRange(ms) {{
   const d = new Date(ms);
-  if (span > 86400e3*60) return d.toLocaleDateString('en-US',{{month:'short',year:'2-digit'}});
-  if (span > 86400e3*2) return d.toLocaleDateString('en-US',{{month:'short',day:'numeric'}});
-  if (span > 36e5*6) return d.toLocaleDateString('en-US',{{month:'short',day:'numeric'}}) + ' ' +
-    d.toLocaleTimeString('en-US',{{hour:'2-digit',minute:'2-digit'}});
-  return d.toLocaleTimeString('en-US',{{hour:'2-digit',minute:'2-digit',second:'2-digit'}});
+  return d.toLocaleDateString('en-US', {{month:'short', day:'numeric', year:'numeric'}});
+}}
+
+function generateSmartTicks(tMin, tMax, marginPx) {{
+  /* Produce well-spaced, human-readable time axis labels.
+     Chooses year / month / day / hour granularity based on span. */
+  const span = tMax - tMin;
+  const dMin = new Date(tMin), dMax = new Date(tMax);
+  let ticks = [];
+
+  if (span > 86400e3 * 365 * 1.5) {{
+    /* Multi-year: show years */
+    const y0 = dMin.getFullYear(), y1 = dMax.getFullYear();
+    const nYears = y1 - y0 + 1;
+    const step = Math.max(1, Math.ceil(nYears / 10));
+    for (let y = y0; y <= y1 + 1; y += step) {{
+      const t = +new Date(y, 0, 1);
+      if (t >= tMin && t <= tMax) ticks.push({{ t, label: String(y) }});
+    }}
+  }} else if (span > 86400e3 * 60) {{
+    /* Months-to-~year: show "Mon 'YY" */
+    const step = span > 86400e3 * 300 ? 3 : span > 86400e3 * 120 ? 2 : 1;
+    let cur = new Date(dMin.getFullYear(), dMin.getMonth(), 1);
+    while (+cur <= tMax) {{
+      const t = +cur;
+      if (t >= tMin) ticks.push({{ t, label: cur.toLocaleDateString('en-US', {{month:'short', year:'2-digit'}}) }});
+      cur.setMonth(cur.getMonth() + step);
+    }}
+  }} else if (span > 86400e3 * 2) {{
+    /* Days-to-weeks: show "Mon D" */
+    const stepDays = Math.max(1, Math.ceil(span / 86400e3 / 10));
+    let cur = new Date(dMin.getFullYear(), dMin.getMonth(), dMin.getDate());
+    while (+cur <= tMax + 86400e3) {{
+      const t = +cur;
+      if (t >= tMin && t <= tMax) ticks.push({{ t, label: cur.toLocaleDateString('en-US', {{month:'short', day:'numeric'}}) }});
+      cur.setDate(cur.getDate() + stepDays);
+    }}
+  }} else if (span > 36e5 * 6) {{
+    /* Hours-to-days */
+    const stepH = Math.max(1, Math.ceil(span / 36e5 / 10));
+    let cur = new Date(dMin.getFullYear(), dMin.getMonth(), dMin.getDate(), dMin.getHours());
+    while (+cur <= tMax + 36e5) {{
+      const t = +cur;
+      if (t >= tMin && t <= tMax) {{
+        const lbl = cur.toLocaleDateString('en-US', {{month:'short', day:'numeric'}}) + ' ' +
+          cur.toLocaleTimeString('en-US', {{hour:'2-digit', minute:'2-digit'}});
+        ticks.push({{ t, label: lbl }});
+      }}
+      cur.setHours(cur.getHours() + stepH);
+    }}
+  }} else {{
+    /* Sub-6h: minutes */
+    const stepM = Math.max(1, Math.ceil(span / 60e3 / 10));
+    let cur = new Date(Math.ceil(tMin / (stepM*60e3)) * (stepM*60e3));
+    while (+cur <= tMax) {{
+      ticks.push({{ t: +cur, label: cur.toLocaleTimeString('en-US', {{hour:'2-digit', minute:'2-digit', second:'2-digit'}}) }});
+      cur = new Date(+cur + stepM * 60e3);
+    }}
+  }}
+
+  /* Remove ticks that would overlap (< 60px apart) */
+  const totalSpan = tMax - tMin;
+  let filtered = [];
+  let lastPx = -999;
+  ticks.forEach(tk => {{
+    const pct = (tk.t - tMin) / totalSpan;
+    const px = pct * (window.innerWidth || 900);
+    if (px - lastPx > 60) {{ filtered.push(tk); lastPx = px; }}
+  }});
+
+  const mg = marginPx || 0;
+  return filtered.map(tk => {{
+    const pct = ((tk.t - tMin) / totalSpan) * 100;
+    return `<span style="left:calc(${{mg}}px + ${{pct}}% * (1 - ${{mg*2}}px / 100%))">${{tk.label}}</span>`;
+  }}).join('');
 }}
 
 /* ---- tooltip ---- */
@@ -738,7 +883,7 @@ async function summarizeView() {{
   visible.forEach(e => (groups[e.category] = groups[e.category] || []).push(e));
 
   const span = vMax - vMin;
-  let prompt = `You are a clinical informatics assistant. Below are medical events for a patient within a selected time window (${{fmtTick(vMin, span)}} to ${{fmtTick(vMax, span)}}). Provide a concise clinical summary of this period. Structure your response with these sections using markdown headers (##):\n\n## Overview\nBrief 1-2 sentence summary of the encounter.\n\n## Key Findings\nImportant lab results, vital signs, or observations.\n\n## Medications & Treatments\nMedications administered, infusions, procedures.\n\n## Diagnoses\nDiagnoses recorded.\n\n## Notable Patterns\nAny trends, concerns, or clinically significant patterns.\n\nUse **bold** for important values. Be concise but thorough.\n\n`;
+  let prompt = `You are a clinical informatics assistant. Below are medical events for a patient within a selected time window (${{fmtRange(vMin)}} to ${{fmtRange(vMax)}}). Provide a concise clinical summary of this period. Structure your response with these sections using markdown headers (##):\n\n## Overview\nBrief 1-2 sentence summary of the encounter.\n\n## Key Findings\nImportant lab results, vital signs, or observations.\n\n## Medications & Treatments\nMedications administered, infusions, procedures.\n\n## Diagnoses\nDiagnoses recorded.\n\n## Notable Patterns\nAny trends, concerns, or clinically significant patterns.\n\nUse **bold** for important values. Be concise but thorough.\n\n`;
 
   for (const [cat, evts] of Object.entries(groups)) {{
     prompt += `=== ${{cat}} (${{evts.length}} events) ===\n`;
@@ -784,7 +929,7 @@ async function summarizeView() {{
     if (data.error) throw new Error(data.error.message);
     const summary = data.choices[0].message.content;
     body.innerHTML = renderMarkdown(summary);
-    meta.textContent = `${{visible.length}} events · ${{fmtTick(vMin, span)}} to ${{fmtTick(vMax, span)}}`;
+    meta.textContent = `${{visible.length}} events · ${{fmtRange(vMin)}} to ${{fmtRange(vMax)}}`;
     summaryCollapsed = false;
     document.getElementById('summaryBody').classList.remove('collapsed');
     document.getElementById('summaryChevron').classList.remove('collapsed');
@@ -796,6 +941,113 @@ async function summarizeView() {{
   }} finally {{
     btn.disabled = false;
     btnLabel.innerHTML = '&#10024; Summarize selected range';
+  }}
+}}
+
+/* ========== CHAT Q&A ========== */
+let chatHistory = [];
+
+function getVisibleEvents() {{
+  return ALL.filter(e => {{
+    if (!activeCats.has(e.category)) return false;
+    const t = +new Date(e.time);
+    return t >= vMin && t <= vMax;
+  }});
+}}
+
+function buildEventContext(events) {{
+  /* Build a concise text representation of events for the LLM */
+  const groups = {{}};
+  events.forEach(e => (groups[e.category] = groups[e.category] || []).push(e));
+  let ctx = `Patient record: ${{events.length}} events from ${{fmtRange(vMin)}} to ${{fmtRange(vMax)}}.\n\n`;
+  for (const [cat, evts] of Object.entries(groups)) {{
+    ctx += `=== ${{cat}} (${{evts.length}} events) ===\n`;
+    if (evts.length > 100) {{
+      const counts = {{}};
+      evts.forEach(e => {{ const k = e.label || e.detail; counts[k] = (counts[k]||0)+1; }});
+      const sorted = Object.entries(counts).sort((a,b) => b[1]-a[1]);
+      ctx += `Top items: ${{sorted.slice(0,25).map(([k,v]) => `${{k}} (x${{v}})`).join(', ')}}\n`;
+      const withVal = evts.filter(e => e.numVal || e.textVal).slice(0, 20);
+      if (withVal.length) {{
+        ctx += `Sample values:\n`;
+        withVal.forEach(e => ctx += `  ${{e.time.slice(0,16)}} ${{e.label || e.detail}}: ${{e.numVal || e.textVal}}\n`);
+      }}
+    }} else {{
+      evts.forEach(e => {{
+        let line = `  ${{e.time.slice(0,16)}} ${{e.detail}}`;
+        if (e.label) line += ` (${{e.label}})`;
+        if (e.numVal) line += ` = ${{e.numVal}}`;
+        else if (e.textVal) line += ` = ${{e.textVal}}`;
+        ctx += line + `\n`;
+      }});
+    }}
+    ctx += `\n`;
+  }}
+  return ctx;
+}}
+
+function appendChatMsg(role, html) {{
+  const box = document.getElementById('chatMessages');
+  const div = document.createElement('div');
+  div.className = 'chat-msg ' + role;
+  div.innerHTML = html;
+  box.appendChild(div);
+  box.scrollTop = box.scrollHeight;
+  return div;
+}}
+
+async function sendChat() {{
+  const input = document.getElementById('chatInput');
+  const question = input.value.trim();
+  if (!question) return;
+  input.value = '';
+
+  appendChatMsg('user', question.replace(/</g, '&lt;'));
+
+  const visible = getVisibleEvents();
+  if (visible.length === 0) {{
+    appendChatMsg('assistant', 'No events in the current view. Adjust the time range and try again.');
+    return;
+  }}
+
+  const thinkingEl = appendChatMsg('thinking', 'Thinking...');
+  const btn = document.getElementById('chatSendBtn');
+  btn.disabled = true;
+
+  /* Build messages: system context + chat history + new question */
+  const eventCtx = buildEventContext(visible);
+  const sysMsg = `You are a clinical informatics assistant helping a clinician review a patient record. You have access to the following patient events currently displayed in the timeline view. Answer the user's question based on this data. Be specific, cite dates and values when relevant. Use markdown formatting.\n\n${{eventCtx}}`;
+
+  chatHistory.push({{ role: 'user', content: question }});
+
+  const messages = [
+    {{ role: 'system', content: sysMsg }},
+    ...chatHistory.slice(-10) /* keep last 10 turns for context */
+  ];
+
+  try {{
+    const url = `${{AZURE_ENDPOINT}}/openai/deployments/${{AZURE_DEPLOYMENT}}/chat/completions?api-version=${{AZURE_API_VERSION}}`;
+    const resp = await fetch(url, {{
+      method: 'POST',
+      headers: {{ 'Content-Type': 'application/json', 'api-key': AZURE_API_KEY }},
+      body: JSON.stringify({{
+        messages,
+        max_completion_tokens: 1500,
+        temperature: 0.3,
+      }})
+    }});
+    const data = await resp.json();
+    if (data.error) throw new Error(data.error.message);
+    const answer = data.choices[0].message.content;
+    chatHistory.push({{ role: 'assistant', content: answer }});
+    thinkingEl.remove();
+    appendChatMsg('assistant', renderMarkdown(answer));
+  }} catch (err) {{
+    thinkingEl.remove();
+    appendChatMsg('assistant', `<span style="color:#e74c3c">Error: ${{err.message}}</span>`);
+  }} finally {{
+    btn.disabled = false;
+    document.getElementById('chatInput').focus();
   }}
 }}
 
@@ -820,19 +1072,210 @@ def generate_html(subject_id, events):
     )
 
 
-def main():
-    subject_id = sys.argv[1] if len(sys.argv) > 1 else "10029484"
-    print(f"Fetching events for subject {subject_id}...")
-    bindings = get_patient_events(subject_id)
-    print(f"  {len(bindings)} event rows returned")
-    events = parse_events(bindings)
-    print(f"  {len(events)} events parsed")
+def get_all_subject_ids():
+    query = """
+    PREFIX meds: <https://teamheka.github.io/meds-ontology#>
+    SELECT DISTINCT ?sid WHERE {
+      ?s a meds:Subject ;
+         meds:subjectId ?sid .
+    }
+    ORDER BY ?sid
+    """
+    return [b["sid"]["value"] for b in sparql(query)]
 
-    out_path = os.path.join(os.path.dirname(__file__), f"timeline_{subject_id}.html")
-    html = generate_html(subject_id, events)
+
+def get_patient_summary(subject_ids):
+    """Fetch event count, date range, and category counts per patient in bulk."""
+    ids_values = " ".join(f'("{sid}")' for sid in subject_ids)
+    query = f"""
+    PREFIX meds: <https://teamheka.github.io/meds-ontology#>
+    SELECT ?sid (COUNT(?e) AS ?cnt) (MIN(?time) AS ?minTime) (MAX(?time) AS ?maxTime) WHERE {{
+      VALUES (?sid) {{ {ids_values} }}
+      ?e a meds:Event ;
+         meds:hasSubject ?s ;
+         meds:time ?time .
+      ?s meds:subjectId ?sid .
+    }}
+    GROUP BY ?sid
+    ORDER BY ?sid
+    """
+    results = {}
+    for b in sparql(query):
+        results[b["sid"]["value"]] = {
+            "count": int(b["cnt"]["value"]),
+            "min_time": b["minTime"]["value"][:10],
+            "max_time": b["maxTime"]["value"][:10],
+        }
+    return results
+
+
+INDEX_TEMPLATE = """<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Patient Timelines — MIMIC-IV Demo</title>
+<style>
+:root {{
+  --bg: #f7f8fc; --surface: #fff; --text: #1a1a2e; --muted: #7f8c8d;
+  --border: #e0e0e0; --accent: #3498db;
+}}
+* {{ margin: 0; padding: 0; box-sizing: border-box; }}
+body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); }}
+header {{
+  background: linear-gradient(135deg, #2c3e50, #34495e); color: #fff;
+  padding: 24px 32px;
+}}
+header h1 {{ font-size: 22px; font-weight: 600; }}
+header p {{ font-size: 13px; opacity: .75; margin-top: 4px; }}
+.controls {{
+  padding: 14px 32px; background: var(--surface); border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+}}
+.controls input {{
+  padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px;
+  font-size: 13px; width: 240px; outline: none;
+}}
+.controls input:focus {{ border-color: var(--accent); }}
+.controls .sort-btn {{
+  padding: 5px 12px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--surface); font-size: 12px; cursor: pointer;
+}}
+.controls .sort-btn.active {{ background: var(--accent); color: #fff; border-color: var(--accent); }}
+.controls .count {{ font-size: 12px; color: var(--muted); margin-left: auto; }}
+.grid {{
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px; padding: 20px 32px;
+}}
+.card {{
+  background: var(--surface); border-radius: 10px; border: 1px solid var(--border);
+  padding: 16px 20px; text-decoration: none; color: var(--text);
+  transition: all .15s; display: block;
+}}
+.card:hover {{ border-color: var(--accent); box-shadow: 0 4px 16px rgba(52,152,219,.12); transform: translateY(-2px); }}
+.card .sid {{ font-size: 16px; font-weight: 700; color: var(--accent); }}
+.card .meta {{ font-size: 12px; color: var(--muted); margin-top: 6px; line-height: 1.7; }}
+.card .meta b {{ color: var(--text); font-weight: 600; }}
+.card .bar {{ display: flex; gap: 2px; margin-top: 10px; height: 6px; border-radius: 3px; overflow: hidden; }}
+.card .bar span {{ height: 100%; border-radius: 3px; }}
+.hidden {{ display: none !important; }}
+</style>
+</head>
+<body>
+<header>
+  <h1>Patient Timelines — MIMIC-IV Demo</h1>
+  <p>{num_patients} patients &middot; {total_events:,} total events</p>
+</header>
+<div class="controls">
+  <input type="text" id="search" placeholder="Search by subject ID..." oninput="filterCards()">
+  <button class="sort-btn active" data-sort="id" onclick="sortCards('id', this)">Sort by ID</button>
+  <button class="sort-btn" data-sort="events" onclick="sortCards('events', this)">Sort by Events</button>
+  <button class="sort-btn" data-sort="date" onclick="sortCards('date', this)">Sort by Date</button>
+  <span class="count" id="countLabel">{num_patients} patients</span>
+</div>
+<div class="grid" id="grid">
+{cards}
+</div>
+<script>
+function filterCards() {{
+  const q = document.getElementById('search').value.trim().toLowerCase();
+  let shown = 0;
+  document.querySelectorAll('.card').forEach(c => {{
+    const match = !q || c.dataset.sid.includes(q);
+    c.classList.toggle('hidden', !match);
+    if (match) shown++;
+  }});
+  document.getElementById('countLabel').textContent = shown + ' patients';
+}}
+function sortCards(key, btn) {{
+  document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  const grid = document.getElementById('grid');
+  const cards = [...grid.children];
+  cards.sort((a, b) => {{
+    if (key === 'id') return a.dataset.sid.localeCompare(b.dataset.sid);
+    if (key === 'events') return parseInt(b.dataset.events) - parseInt(a.dataset.events);
+    if (key === 'date') return a.dataset.mintime.localeCompare(b.dataset.mintime);
+  }});
+  cards.forEach(c => grid.appendChild(c));
+}}
+</script>
+</body>
+</html>"""
+
+
+def generate_index(patient_info, out_dir):
+    """Generate an index.html linking to all patient timelines."""
+    total_events = sum(info["count"] for info in patient_info.values())
+
+    cards = ""
+    for sid in sorted(patient_info.keys()):
+        info = patient_info[sid]
+        cards += (
+            f'<a class="card" href="data/timeline_{sid}.html" '
+            f'data-sid="{sid}" data-events="{info["count"]}" data-mintime="{info["min_time"]}">\n'
+            f'  <div class="sid">Subject {sid}</div>\n'
+            f'  <div class="meta">'
+            f'<b>{info["count"]:,}</b> events &middot; '
+            f'{info["min_time"]} to {info["max_time"]}'
+            f'</div>\n'
+            f'</a>\n'
+        )
+
+    html = INDEX_TEMPLATE.format(
+        num_patients=len(patient_info),
+        total_events=total_events,
+        cards=cards,
+    )
+    out_path = os.path.join(out_dir, "index.html")
     with open(out_path, "w") as f:
         f.write(html)
-    print(f"Timeline saved to {out_path}")
+    print(f"Index saved to {out_path}")
+
+
+def generate_for_patient(subject_id, out_dir):
+    print(f"  [{subject_id}] Fetching events...")
+    bindings = get_patient_events(subject_id)
+    if not bindings:
+        print(f"  [{subject_id}] No events found, skipping.")
+        return False
+    events = parse_events(bindings)
+    print(f"  [{subject_id}] {len(events)} events parsed")
+
+    html = generate_html(subject_id, events)
+    out_path = os.path.join(out_dir, f"timeline_{subject_id}.html")
+    with open(out_path, "w") as f:
+        f.write(html)
+    print(f"  [{subject_id}] Saved to {out_path}")
+    return True
+
+
+def main():
+    # Output to website/patient-timeline/ at project root
+    project_root = os.path.join(os.path.dirname(__file__), "..", "..")
+    website_dir = os.path.join(project_root, "website", "patient-timeline")
+    out_dir = os.path.join(website_dir, "data")
+    os.makedirs(out_dir, exist_ok=True)
+
+    if len(sys.argv) > 1:
+        # Single patient mode
+        subject_id = sys.argv[1]
+        generate_for_patient(subject_id, out_dir)
+    else:
+        # All patients mode
+        print("Querying all patient subject IDs...")
+        subject_ids = get_all_subject_ids()
+        print(f"Found {len(subject_ids)} patients.")
+        success = 0
+        for i, sid in enumerate(subject_ids, 1):
+            print(f"[{i}/{len(subject_ids)}]")
+            if generate_for_patient(sid, out_dir):
+                success += 1
+        print(f"\nDone. Generated {success}/{len(subject_ids)} timelines in {out_dir}")
+
+        # Generate index page
+        print("Fetching patient summaries for index...")
+        patient_info = get_patient_summary(subject_ids)
+        generate_index(patient_info, website_dir)
 
 
 if __name__ == "__main__":

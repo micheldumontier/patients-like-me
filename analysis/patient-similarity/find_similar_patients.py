@@ -18,7 +18,7 @@ from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 
 QDRANT_URL = "http://localhost:6333"
-QLEVER_URL = "http://localhost:7001"
+QLEVER_URL = "http://localhost:6335"
 COLLECTION = "patient_embeddings"
 EMBEDDING_DIM = 200
 EMBEDDINGS_CSV = "../rdf2vec/patient_embeddings.csv"
@@ -542,7 +542,11 @@ def main():
         profiles[pid] = get_patient_profile(pid)
 
     query_patient = {"patient_id": args.patient_id}
-    output_path = f"similarity_{args.patient_id}.html"
+    # Output to website/patient-similarity/ at project root
+    project_root = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..")
+    website_dir = os.path.join(project_root, "website", "patient-similarity")
+    os.makedirs(website_dir, exist_ok=True)
+    output_path = os.path.join(website_dir, f"similarity_{args.patient_id}.html")
     generate_comparison_html(query_patient, similar, profiles, output_path)
 
 
