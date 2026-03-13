@@ -64,15 +64,88 @@ cp .env.example .env
 
 ## Data Pipeline
 
-### 1. Convert MIMIC-IV Demo to RDF
+### 1. Obtain MIMIC-IV Demo Data
 
-Uses [meds2rdf](https://github.com/TeamHeKA/meds2rdf) to convert MEDS-format data to RDF with BioPortal-canonical IRIs.
+The source data is [MIMIC-IV Clinical Database Demo](https://physionet.org/content/mimic-iv-demo/), a freely available subset of 100 de-identified patients from the Beth Israel Deaconess Medical Center. It includes hospital admissions, ICU stays, diagnoses, procedures, lab results, medications, and vitals.
 
 ```bash
-meds_to_rdf --input ~/data/physionet.org/files/mimic-iv-demo-meds/2.0.3 --output data/mimic-iv-demo.ttl
+# Download via PhysioNet (no credentialing required for the demo)
+wget -r -N -c -np https://physionet.org/files/mimiciv/3.1/
 ```
 
-### 2. Prepare Medical Ontologies
+### 2. Convert MIMIC-IV to MEDS Format
+
+[MEDS](https://github.com/Medical-Event-Data-Standard/meds) (Medical Event Data Standard) is a standardized format for representing patient event streams as flat Parquet files. Each row is an event with a `subject_id`, `time`, `code`, and optional `numeric_value`/`text_value` fields. Code strings follow the pattern `CATEGORY//VOCABULARY//CODE` (e.g., `DIAGNOSIS//ICD//9//4280`, `LAB//51301//mL`).
+
+The conversion uses [MIMIC-IV-MEDS](https://pypi.org/project/MIMIC-IV-MEDS/), an ETL package that extracts events from the relational MIMIC-IV tables, maps diagnoses to ICD codes, labs to LOINC, and produces a MEDS-compliant Parquet dataset.
+
+```bash
+pip install MIMIC-IV-MEDS
+
+export N_WORKERS=10
+# Convert MIMIC-IV Demo to MEDS format
+MEDS_extract-MIMIC_IV \
+  input_dir=~/data/physionet.org/files/mimiciv/3.1/ \
+  output_dir=~/data/mimic-iv-meds-dem
+```
+
+Alternatively, a pre-built MEDS version of the demo is available at [mimic-iv-demo-meds](https://physionet.org/content/mimic-iv-demo-meds/):
+
+```bash
+wget -r -N -c -np https://physionet.org/files/mimic-iv-demo-meds/0.0.1/
+```
+
+The resulting dataset structure:
+
+```
+mimic-iv-demo-meds/
+├── metadata/
+│   ├── dataset.json          # Dataset metadata (MEDS version, ETL info)
+│   ├── codes.parquet         # 2,661 unique codes with descriptions and parent mappings
+│   └── subject_splits.parquet
+└── data/
+    ├── train/                # 80 patients (~804K events)
+    ├── tuning/               # 10 patients
+    └── held_out/             # 10 patients
+```
+
+Each event Parquet file contains columns: `subject_id`, `time`, `code`, `numeric_value`, `text_value`, plus MIMIC-specific fields (`hadm_id`, `icustay_id`, `route`, `unit`, etc.).
+
+### 3. Convert MEDS to RDF
+
+[meds2rdf](https://github.com/TeamHeKA/meds2rdf) converts the MEDS Parquet dataset into RDF (Turtle format) using the [MEDS Ontology](https://teamheka.github.io/meds-ontology). Each patient event becomes an `meds:Event` instance linked to a subject, timestamp, code string, and optional numeric/text values. Code strings are mapped to ontology IRIs using BioPortal PURLs.
+
+```python
+from meds2rdf import MedsRDFConverter
+
+converter = MedsRDFConverter("~/data/physionet.org/files/mimic-iv-demo-meds/0.0.1")
+converter.convert(include_dataset_metadata=True, include_codes=True)
+converter.to_turtle("data/mimic-iv-demo.ttl")
+```
+
+Key RDF namespaces produced:
+
+| Prefix | Namespace | Content |
+|--------|-----------|---------|
+| `meds:` | `https://teamheka.github.io/meds-ontology#` | Ontology classes/properties (Event, hasSubject, codeString, etc.) |
+| `meds-data:` | `https://teamheka.github.io/meds-data/` | Patient and event instances |
+| `icd9cm:` | `http://purl.bioontology.org/ontology/ICD9CM/` | ICD-9-CM diagnosis codes |
+| `icd10cm:` | `http://purl.bioontology.org/ontology/ICD10CM/` | ICD-10-CM diagnosis codes |
+| `rxnorm:` | `http://purl.bioontology.org/ontology/RXNORM/` | Medication codes |
+| `lnc:` | `http://purl.bioontology.org/ontology/LNC/` | LOINC lab codes |
+| `snomedct:` | `http://purl.bioontology.org/ontology/SNOMEDCT/` | SNOMED CT concepts |
+
+Example RDF for a single event:
+
+```turtle
+meds-data:event/abc123 a meds:Event ;
+    meds:hasSubject meds-data:subject/10000032 ;
+    meds:time "2180-03-23T11:51:00"^^xsd:dateTime ;
+    meds:codeString "DIAGNOSIS//ICD//9//4280" ;
+    meds:hasCode [ meds:parentCode icd9cm:428.0 ] .
+```
+
+### 4. Prepare Medical Ontologies
 
 The following ontologies are loaded alongside patient data for semantic enrichment:
 
@@ -92,7 +165,7 @@ python data_scripts/rf2_to_ttl.py data/snomed-ct-us.zip data/SNOMEDCT.ttl
 
 All ontologies use BioPortal PURL IRIs (e.g., `http://purl.bioontology.org/ontology/SNOMEDCT/`).
 
-### 3. Load into QLever
+### 5. Load into QLever
 
 ```bash
 cd qlever
@@ -119,7 +192,7 @@ qlever ui
 - Includes autocomplete for prefixes (meds, ICD9CM, ICD10CM, RXNORM, SNOMEDCT, LOINC, etc.) and example queries
 - Configuration is in `qlever/Qleverfile-ui.yml`
 
-### 4. Start Qdrant Vector Database
+### 6. Start Qdrant Vector Database
 
 ```bash
 docker run -d --name qdrant -p 6333:6333 -p 6334:6334 qdrant/qdrant:latest

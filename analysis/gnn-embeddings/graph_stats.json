@@ -1,0 +1,10 @@
+{
+  "num_patients": 100,
+  "num_code_nodes": 4916,
+  "num_lab_bin_nodes": 2571,
+  "num_edges": 130470,
+  "embedding_dim": 128,
+  "num_layers": 2,
+  "epochs": 500,
+  "final_loss": 5.844700813293457
+}
