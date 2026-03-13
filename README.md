@@ -1,6 +1,6 @@
 # Patients Like Me
 
-A clinical data analysis platform that converts MIMIC-IV demo data to RDF, loads it alongside medical ontologies into a QLever triplestore, and provides interactive visualizations including patient timelines, RDF2Vec-based patient similarity, and AI-powered clinical summaries.
+A clinical data analysis platform that converts MIMIC-IV demo data to RDF, loads it alongside medical ontologies into a QLever triplestore, and computes patient embeddings using four complementary approaches (RDF2Vec, text embeddings, GNN, and multi-view fusion). Includes interactive visualizations for patient timelines, similarity comparisons, and AI-powered clinical summaries.
 
 ## Architecture
 
@@ -237,9 +237,18 @@ python analysis/patient-similarity/find_similar_patients.py <patient_id> --top_n
 
 Output goes to `website/patient-similarity/`. View at `http://localhost:9000/mimic-miner/patient-similarity/`.
 
-#### RDF2Vec Embeddings
+### Patient Embeddings
 
-Compute graph embeddings for patients and visualize clusters.
+Four complementary embedding approaches capture different aspects of patient similarity, plus a fusion model that combines all four into a shared space.
+
+#### 1. RDF2Vec (200 dimensions)
+
+Graph-based embeddings using random walks over the MIMIC-IV RDF graph with all five medical ontologies. Custom implementation with in-memory adjacency lists for fast walks.
+
+- **Reverse walks** are essential: patient URIs have only 2 forward edges but ~1,500 reverse edges (events via `meds:hasSubject`)
+- Loads MIMIC-IV data + ICD9CM, ICD10CM, RXNORM, LOINC, and SNOMED CT ontologies
+- **Lab value discretization**: 405K events with numeric values binned into quartiles per code (817 codes), creating shared graph nodes that connect patients with similar lab profiles
+- 100 walks per patient, depth 4, Skip-gram Word2Vec
 
 ```bash
 cd analysis/rdf2vec
@@ -247,6 +256,62 @@ python run_rdf2vec.py              # Generate embeddings
 python cluster_and_visualize.py    # t-SNE/UMAP clustering
 python update_qdrant.py            # Load into Qdrant
 ```
+
+#### 2. Template Text Embeddings (3,072 dimensions)
+
+SPARQL queries extract diagnoses, medications, labs, and procedures per patient, then verbalize them into structured text templates (avg 5,230 chars). Embedded with Azure OpenAI `text-embedding-3-large`.
+
+#### 3. LLM Summary Embeddings (3,072 dimensions)
+
+Template text enriched by GPT-5.2 into concise clinical narrative summaries (avg 1,020 chars), then embedded with `text-embedding-3-large`. Produces tighter and more distinct clusters than raw templates.
+
+```bash
+cd analysis/text-embeddings
+python generate_embeddings.py      # Generate template + summary embeddings
+```
+
+#### 4. GNN / GraphSAGE Embeddings (128 dimensions)
+
+A Graph Neural Network trained on a heterogeneous patient-code graph using PyTorch Geometric. Uses a GraphSAGE encoder with Barlow Twins + contrastive loss to learn embeddings through message passing.
+
+- **Graph**: 100 patients, 4,916 code nodes, 2,571 lab bin nodes, 130K edges (undirected)
+- **Edge types**: patient↔code (13.7K), code↔code hierarchy via `rdfs:subClassOf` (5K), patient↔lab bin (46K)
+- Ontology hierarchy edges collected via BFS 3 hops from referenced codes
+- Type embeddings + edge dropout augmentation for two views
+
+```bash
+cd analysis/gnn-embeddings
+python train_gnn_embeddings.py     # Train GNN and generate embeddings
+```
+
+#### 5. Fused Embeddings (128 dimensions)
+
+Multi-view contrastive learning (NT-Xent loss) across all pairs of the four approaches. Four projection heads map each view into a shared 128-dimensional space; the fused embedding is the normalized mean.
+
+```bash
+cd analysis/fused-embeddings
+python train_fused_embeddings.py   # Train fusion model
+```
+
+#### Embedding Comparison
+
+Compare all four approaches side-by-side with Spearman rank correlations, top-5 nearest-neighbor overlap, similarity matrices, and t-SNE projections.
+
+```bash
+cd analysis/text-embeddings
+python compare_all_embeddings.py   # Generate four-way comparison
+```
+
+| Pair                    | Spearman rho | Top-5 NN Overlap |
+|-------------------------|-------------|-----------------|
+| RDF2Vec vs Template     | 0.053       | 7.2%            |
+| RDF2Vec vs LLM Summary  | -0.021      | 5.0%            |
+| RDF2Vec vs GNN          | 0.140       | 5.2%            |
+| Template vs LLM Summary | **0.353**   | **28.2%**       |
+| Template vs GNN         | **0.334**   | **18.4%**       |
+| LLM Summary vs GNN     | 0.173       | 15.2%           |
+
+The four methods are largely complementary: RDF2Vec captures graph topology, GNN captures message-passing structure, Template encodes the full clinical profile, and LLM Summary distills high-level clinical phenotypes. The fused embedding successfully finds a shared space that respects all four perspectives, with higher agreement to each individual method than any pair of individual methods has with each other.
 
 #### Events per Patient
 
@@ -272,7 +337,10 @@ patients-like-me/
 ├── analysis/                      # Analysis scripts
 │   ├── patient-timeline/          # Timeline generation script
 │   ├── patient-similarity/        # Similarity generation script
-│   ├── rdf2vec/                   # Graph embedding generation
+│   ├── rdf2vec/                   # RDF2Vec graph embeddings (200d)
+│   ├── text-embeddings/           # Template + LLM summary embeddings (3072d)
+│   ├── gnn-embeddings/            # GraphSAGE GNN embeddings (128d)
+│   ├── fused-embeddings/          # Multi-view fused embeddings (128d)
 │   └── events-per-patient/        # Population-level statistics
 ├── data/                          # RDF data files
 │   ├── mimic-iv-demo.ttl          # Patient events
